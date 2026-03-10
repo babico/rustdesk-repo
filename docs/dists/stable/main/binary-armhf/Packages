@@ -1,14 +1,14 @@
 Package: rustdesk
 Version: 1.4.6
-Architecture: arm64
+Architecture: armhf
 Maintainer: rustdesk <info@rustdesk.com>
-Depends: libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire
+Depends: libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire, libatomic1
 Recommends: libayatana-appindicator3-1
-Filename: pool/main/r/rustdesk/rustdesk-1.4.6-aarch64.deb
-Size: 21469056
-MD5sum: 6d6e86d123fdbc9a81cbd9107df79bf7
-SHA1: bfa34bb63e6e1d7bf9dcd02ae3be339576acd564
-SHA256: d767b042c53a169f4bc6273d884a238fc44501a9fda2095fb05820dfc538b34c
+Filename: pool/main/r/rustdesk/rustdesk-1.4.6-armv7-sciter.deb
+Size: 12405800
+MD5sum: 09e68ec0093c8f7b6877c6d8c311fd2a
+SHA1: 49069f954809bc42e41b3953b62b6956661e6335
+SHA256: c573774c7bd47b80d816f453c080e1f0eb22901f8fb868d69359f088c049451d
 Section: net
 Priority: optional
 Homepage: https://rustdesk.com
