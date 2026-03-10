@@ -1,0 +1,56 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: RustDesk APT Mirror
+Label: RustDesk
+Suite: stable
+Codename: stable
+Version: 1.4.6
+Architectures: amd64 arm64 armhf
+Components: main
+Description: Unofficial APT mirror for RustDesk releases
+Date: Tue, 10 Mar 2026 13:34:21 +0000
+MD5Sum:
+ c9993d4021dea83f64f8785577e4aff3 697 main/binary-amd64/Packages
+ 4bd35c0ed156749816cc67faf2ad4da4 471 main/binary-amd64/Packages.gz
+ c9993d4021dea83f64f8785577e4aff3 697 main/binary-arm64/Packages
+ 941e238babf53da2ec804e5aebbb0050 471 main/binary-arm64/Packages.gz
+ c9993d4021dea83f64f8785577e4aff3 697 main/binary-armhf/Packages
+ 941e238babf53da2ec804e5aebbb0050 471 main/binary-armhf/Packages.gz
+SHA1:
+ 87f14e1b165d86b2045877a02b9a143ebdd788c3 697 main/binary-amd64/Packages
+ 77c50044a9b8657cf1af67e306709b31402143ea 471 main/binary-amd64/Packages.gz
+ 87f14e1b165d86b2045877a02b9a143ebdd788c3 697 main/binary-arm64/Packages
+ 5440ef3339aa473cfe4cc59b116e93d50b655213 471 main/binary-arm64/Packages.gz
+ 87f14e1b165d86b2045877a02b9a143ebdd788c3 697 main/binary-armhf/Packages
+ 5440ef3339aa473cfe4cc59b116e93d50b655213 471 main/binary-armhf/Packages.gz
+SHA256:
+ 3b7512dbf6c8b3b78e602436a9c8b5bd7477af5b6e3923190e5313955330d81f 697 main/binary-amd64/Packages
+ 6fbdc17263d320852925026b1a0c808a67703acaad3696e797d0b6b882abc230 471 main/binary-amd64/Packages.gz
+ 3b7512dbf6c8b3b78e602436a9c8b5bd7477af5b6e3923190e5313955330d81f 697 main/binary-arm64/Packages
+ 31cb39af022d7c85bfb72001ddf89d7055fc8de72b2c663cb09bc61b3de35fbe 471 main/binary-arm64/Packages.gz
+ 3b7512dbf6c8b3b78e602436a9c8b5bd7477af5b6e3923190e5313955330d81f 697 main/binary-armhf/Packages
+ 31cb39af022d7c85bfb72001ddf89d7055fc8de72b2c663cb09bc61b3de35fbe 471 main/binary-armhf/Packages.gz
+SHA512:
+ c4d379d6786f7faa00db34cafe9437384c752e78a60f5f0c8b2c6aba0b04859fe3c941ec0bb96157950fe913a0265f5411355d11babcca3bc22dd4ace3bd6c0d 697 main/binary-amd64/Packages
+ 5ccf10622e710e1756d317d241cd5f56ba4290b7681095329f365eaa1bc2525dfee6a4cbb0baaf67465927caf131fed027ebbb27b798a3dc37b8b202f113b6ef 471 main/binary-amd64/Packages.gz
+ c4d379d6786f7faa00db34cafe9437384c752e78a60f5f0c8b2c6aba0b04859fe3c941ec0bb96157950fe913a0265f5411355d11babcca3bc22dd4ace3bd6c0d 697 main/binary-arm64/Packages
+ f523a550384f3aab066fe48d49ed615e89f097e3d211a33546a10bc505190fc7c6452e52a7539346f1af149a6987bda7611cdf164704c610cfc5ec5af82772ec 471 main/binary-arm64/Packages.gz
+ c4d379d6786f7faa00db34cafe9437384c752e78a60f5f0c8b2c6aba0b04859fe3c941ec0bb96157950fe913a0265f5411355d11babcca3bc22dd4ace3bd6c0d 697 main/binary-armhf/Packages
+ f523a550384f3aab066fe48d49ed615e89f097e3d211a33546a10bc505190fc7c6452e52a7539346f1af149a6987bda7611cdf164704c610cfc5ec5af82772ec 471 main/binary-armhf/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEjmgidHiCXgHiEBwDrrR2eTpsSzIFAmmwHd0ACgkQrrR2eTps
+SzK1eg/9H+k0ifwEOthgwFEOrDz2LDYMKfQyw0KRFD98yj+zC1tN5HDOEWeAb6L1
+J7XhO2HAjkGWuPwHj9ElTxeI/gd0e7lAsUpOTxTXplIi7/277R6lsQ43Xy4Zt48H
+yo5cLqTUIV8h9dGUK0RlV5+8lfXoXKhTZer6ffpqCgMbYFAGbNeGPoQlIthUM9Ze
+2f4JioggcDILraDmfkpOUMLgRZihpUyjeBzIuqNIwBrSWTIC9jG3CJMVIaHCLBpD
+KqJwcLDe7W4svkVEqi58f6qKu0+E9Uwt80TThSPUavxfga5x76BodbIokg5iC45Q
+WrwoCMll955a+fr2bhOklyus5pslV3aj/3J2I3wCQgA7aGBcmBVbzs7i/Eojhpun
+LyD/D4SB8B2oVLZPoF2mwrBloohTUDMA7nXZ2SN2PCU682HaZAJKuzrNHzPEUvGU
+5uggXpg84jDKgn8daIX06kfGmVWKXT0en+LP/jOyx2KedWH7n4hQFU+KfHYFIoVy
+xsL2g/9J+eIdtdoWcL+rgS+Z32YbC2goUasiSq1XFLxl3DuhWyAWoGvUc5KYgB3p
+CA+LBvZXrKw6Kp6WJ3IF6sODy2bm2hT6KaJSQ0M21USHHCMjra4AmgMECe1XJoHD
+uh/e/CZ8iiJKuDrNDsYRUTOAyC0O9axgnCkusuOZFy3riUOfqSo=
+=TP2L
+-----END PGP SIGNATURE-----
