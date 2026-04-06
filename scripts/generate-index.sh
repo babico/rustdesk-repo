@@ -219,7 +219,7 @@ cat > docs/index.html <<HTMLEOF
       <div class="num">2</div>
       <div style="width:100%">
         <h3>Add the repository</h3>
-        <pre><code>echo "deb [arch=amd64 signed-by=/usr/share/keyrings/personal-apt.gpg] ${URL} stable main" | sudo tee /etc/apt/sources.list.d/personal-apt.list</code></pre>
+        <pre><code>echo "deb [signed-by=/usr/share/keyrings/personal-apt.gpg] ${URL} stable main" | sudo tee /etc/apt/sources.list.d/personal-apt.list</code></pre>
       </div>
     </div>
   </div>
