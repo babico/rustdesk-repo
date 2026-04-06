@@ -74,7 +74,6 @@ while IFS= read -r APP_ROW; do
 
   # Quick install card
   INSTALL_CMD="sudo apt install ${APP_NAME}"
-  [ -n "$LATEST" ] && INSTALL_VERSION="${APP_NAME}=${LATEST}" || INSTALL_VERSION="${APP_NAME}"
 
   APP_SECTIONS="${APP_SECTIONS}
   <section id=\"${APP_NAME}\">
