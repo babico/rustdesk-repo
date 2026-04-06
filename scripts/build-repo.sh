@@ -81,8 +81,8 @@ done
 # ── Release file ──────────────────────────────────────────────────────────────
 echo "==> Generating Release..."
 
-OWNER="${GITHUB_REPOSITORY_OWNER:-your-username}"
-SLUG="${GITHUB_REPOSITORY:-your-username/apt-packages}"
+OWNER="${GITHUB_REPOSITORY_OWNER:-babico}"
+SLUG="${GITHUB_REPOSITORY:-babico/apt-packages}"
 APP_COUNT=$(jq 'length' "$APPS_JSON")
 
 # Count total unique versions across all apps

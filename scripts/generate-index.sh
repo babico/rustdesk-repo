@@ -4,8 +4,8 @@
 set -euo pipefail
 
 APPS_JSON="apps.json"
-OWNER="${GITHUB_REPOSITORY_OWNER:-your-username}"
-SLUG="${GITHUB_REPOSITORY:-your-username/apt-packages}"
+OWNER="${GITHUB_REPOSITORY_OWNER:-babico}"
+SLUG="${GITHUB_REPOSITORY:-babico/apt-packages}"
 NAME="${SLUG##*/}"
 URL="https://${OWNER}.github.io/${NAME}"
 UPDATED=$(date -u '+%Y-%m-%d %H:%M UTC')

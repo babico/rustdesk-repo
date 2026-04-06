@@ -23,7 +23,7 @@ apps.json (app definitions)
   │ 5. Deploy to GitHub Pages            │
   └──────────────────────────────────────┘
         ↓
-  https://YOUR_USERNAME.github.io/apt-packages
+  https://babico.github.io/apt-packages
 ```
 
 **Auto-bootstrap:** on the very first push (when tracking files are empty), the workflow automatically downloads **all** historical releases for every app. No manual trigger needed.
@@ -35,11 +35,11 @@ apps.json (app definitions)
 ### Quick setup
 
 ```bash
-curl -fsSL https://YOUR_USERNAME.github.io/apt-packages/apt-repo.gpg \
+curl -fsSL https://babico.github.io/apt-packages/apt-repo.gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/personal-apt.gpg
 
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/personal-apt.gpg] \
-  https://YOUR_USERNAME.github.io/apt-packages stable main" \
+  https://babico.github.io/apt-packages stable main" \
   | sudo tee /etc/apt/sources.list.d/personal-apt.list
 
 sudo apt update
