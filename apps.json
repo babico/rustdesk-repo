@@ -1,0 +1,33 @@
+[
+  {
+    "name": "rustdesk",
+    "display_name": "RustDesk",
+    "description": "Open-source remote desktop software",
+    "homepage": "https://rustdesk.com",
+    "github_repo": "rustdesk/rustdesk",
+    "pool_letter": "r",
+    "architectures": {
+      "amd64": "x86_64.deb",
+      "arm64": "aarch64.deb",
+      "armhf": "armv7-sciter.deb"
+    },
+    "download_url": "https://github.com/rustdesk/rustdesk/releases/download/${VERSION}/rustdesk-${VERSION}-${SUFFIX}",
+    "deb_pattern": "rustdesk-${VERSION}-${SUFFIX}",
+    "version_prefix": ""
+  },
+  {
+    "name": "mattermost-desktop",
+    "display_name": "Mattermost Desktop",
+    "description": "Mattermost desktop application for team messaging",
+    "homepage": "https://mattermost.com",
+    "github_repo": "mattermost/desktop",
+    "pool_letter": "m",
+    "architectures": {
+      "amd64": "amd64.deb",
+      "arm64": "arm64.deb"
+    },
+    "download_url": "https://releases.mattermost.com/desktop/${VERSION}/mattermost-desktop_${VERSION}-1_${SUFFIX}",
+    "deb_pattern": "mattermost-desktop_${VERSION}-1_${SUFFIX}",
+    "version_prefix": "v"
+  }
+]

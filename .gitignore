@@ -6,6 +6,9 @@ docs/pool/
 # Keep everything else in docs/ (dists/, index.html, *.gpg)
 !docs/dists/
 !docs/index.html
+!docs/apt-repo.gpg
+
+# Legacy key file (kept for backwards compat if present)
 !docs/rustdesk-apt.gpg
 
 # Secrets / local keys

@@ -1,13 +1,13 @@
-name: Update RustDesk APT Repository
+name: Update APT Repository
 
 on:
   push:
     branches: [main]
     paths:
-      # Only trigger on infra changes, not on the generated docs/
       - '.github/workflows/**'
       - 'scripts/**'
-      - 'tracked_versions.json'
+      - 'apps.json'
+      - 'tracked_versions/**'
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
@@ -17,15 +17,19 @@ on:
         required: false
         default: 'false'
       backfill:
-        description: 'Download ALL historical releases'
+        description: 'Download ALL historical releases for all apps'
         required: false
         default: 'false'
       backfill_limit:
-        description: 'Max releases to backfill (0 = unlimited)'
+        description: 'Max releases to backfill per app (0 = unlimited)'
         required: false
         default: '0'
+      specific_app:
+        description: 'App name to update (blank = all apps)'
+        required: false
+        default: ''
       specific_version:
-        description: 'Add one specific version tag, e.g. 1.3.9'
+        description: 'Add one specific version tag (requires specific_app)'
         required: false
         default: ''
 
@@ -39,102 +43,126 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      latest_version:    ${{ steps.decide.outputs.latest_version }}
-      versions_to_fetch: ${{ steps.decide.outputs.versions_to_fetch }}
-      should_run:        ${{ steps.decide.outputs.should_run }}
+      app_versions: ${{ steps.decide.outputs.app_versions }}
+      should_run:   ${{ steps.decide.outputs.should_run }}
 
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: Decide versions to fetch
+      - name: Decide versions to fetch per app
         id: decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          API="https://api.github.com/repos/rustdesk/rustdesk"
-          AUTH='-H "Authorization: Bearer '"$GH_TOKEN"'"'
+          # Output: JSON object { "app_name": ["v1","v2"], ... }
+          RESULT='{}'
+          ANYTHING_NEW=false
 
-          # ── Latest upstream version ──────────────────────────────────────
-          LATEST=$(curl -sSf \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            "$API/releases/latest" | jq -r '.tag_name')
-          echo "latest_version=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "Upstream latest: $LATEST"
+          while IFS= read -r APP_ROW; do
+            APP_NAME=$(echo "$APP_ROW" | jq -r '.name')
+            GITHUB_REPO=$(echo "$APP_ROW" | jq -r '.github_repo')
+            VERSION_PREFIX=$(echo "$APP_ROW" | jq -r '.version_prefix')
+            TRACKING="tracked_versions/${APP_NAME}.json"
 
-          # ── Already-tracked versions ─────────────────────────────────────
-          if [ -f tracked_versions.json ]; then
-            TRACKED=$(jq -r '.[].version' tracked_versions.json 2>/dev/null || true)
-          else
-            TRACKED=""
-          fi
+            # Skip if specific_app is set and doesn't match
+            SA="${{ github.event.inputs.specific_app || '' }}"
+            if [ -n "$SA" ] && [ "$SA" != "$APP_NAME" ]; then
+              continue
+            fi
 
-          VERSIONS='[]'
+            echo "--- Checking $APP_NAME (${GITHUB_REPO}) ---"
 
-          # ── Auto-bootstrap: if tracked_versions.json is empty → backfill all ──
-          TRACKED_COUNT=$(echo "$TRACKED" | grep -c '\S' || true)
-          if [ "$TRACKED_COUNT" -eq 0 ]; then
-            echo "Bootstrap mode: tracked_versions.json is empty — fetching all releases"
-            EFFECTIVE_BACKFILL=true
-            EFFECTIVE_LIMIT=0
-          else
-            EFFECTIVE_BACKFILL="${{ github.event.inputs.backfill || 'false' }}"
-            EFFECTIVE_LIMIT="${{ github.event.inputs.backfill_limit || '0' }}"
-          fi
+            API="https://api.github.com/repos/${GITHUB_REPO}"
 
-          # ── Backfill: fetch all historical releases ──────────────────────
-          if [ "$EFFECTIVE_BACKFILL" = "true" ]; then
-            echo "Fetching full release list from GitHub..."
-            ALL=$(curl -sSf \
+            # ── Latest upstream version ──────────────────────────────────
+            LATEST_TAG=$(curl -sSf \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer $GH_TOKEN" \
-              "$API/releases?per_page=100" \
-              | jq -r '[.[] | select(.prerelease==false) | .tag_name] | .[]')
+              "$API/releases/latest" | jq -r '.tag_name')
+            # Strip version prefix
+            LATEST="${LATEST_TAG#$VERSION_PREFIX}"
+            echo "  Upstream latest: $LATEST (tag: $LATEST_TAG)"
 
-            COUNT=0
-            for V in $ALL; do
-              if [ "$EFFECTIVE_LIMIT" -gt 0 ] && [ "$COUNT" -ge "$EFFECTIVE_LIMIT" ]; then
-                echo "  Reached backfill limit of $EFFECTIVE_LIMIT"
-                break
-              fi
-              if ! echo "$TRACKED" | grep -qx "$V"; then
-                VERSIONS=$(echo "$VERSIONS" | jq --arg v "$V" '. + [$v]')
-                echo "  [queue] $V"
-                COUNT=$((COUNT+1))
-              else
-                echo "  [skip]  $V (already tracked)"
-              fi
-            done
-          fi
+            # ── Already-tracked versions ─────────────────────────────────
+            if [ -f "$TRACKING" ]; then
+              TRACKED=$(jq -r '.[].version' "$TRACKING" 2>/dev/null || true)
+            else
+              TRACKED=""
+            fi
 
-          # ── Specific version requested ───────────────────────────────────
-          SV="${{ github.event.inputs.specific_version || '' }}"
-          if [ -n "$SV" ] && ! echo "$TRACKED" | grep -qx "$SV"; then
-            VERSIONS=$(echo "$VERSIONS" | jq --arg v "$SV" '. + [$v]')
-            echo "  [queue] specific: $SV"
-          fi
+            VERSIONS='[]'
 
-          # ── Always ensure latest is tracked ─────────────────────────────
-          if ! echo "$TRACKED" | grep -qx "$LATEST"; then
-            VERSIONS=$(echo "$VERSIONS" | jq --arg v "$LATEST" '. + [$v]')
-            echo "  [queue] new latest: $LATEST"
-          fi
+            # ── Auto-bootstrap: if tracking file is empty → backfill all ──
+            TRACKED_COUNT=$(echo "$TRACKED" | grep -c '\S' || true)
+            if [ "$TRACKED_COUNT" -eq 0 ]; then
+              echo "  Bootstrap mode: tracking empty — fetching all releases"
+              EFF_BACKFILL=true
+              EFF_LIMIT=0
+            else
+              EFF_BACKFILL="${{ github.event.inputs.backfill || 'false' }}"
+              EFF_LIMIT="${{ github.event.inputs.backfill_limit || '0' }}"
+            fi
 
-          # ── Determine if there is anything to do ─────────────────────────
-          N=$(echo "$VERSIONS" | jq 'length')
+            # ── Backfill: fetch all historical releases ──────────────────
+            if [ "$EFF_BACKFILL" = "true" ]; then
+              echo "  Fetching full release list from GitHub..."
+              ALL=$(curl -sSf \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                "$API/releases?per_page=100" \
+                | jq -r --arg p "$VERSION_PREFIX" \
+                  '[.[] | select(.prerelease==false) | .tag_name | ltrimstr($p)] | .[]')
+
+              COUNT=0
+              for V in $ALL; do
+                if [ "$EFF_LIMIT" -gt 0 ] && [ "$COUNT" -ge "$EFF_LIMIT" ]; then
+                  echo "    Reached backfill limit of $EFF_LIMIT"
+                  break
+                fi
+                if ! echo "$TRACKED" | grep -qx "$V"; then
+                  VERSIONS=$(echo "$VERSIONS" | jq --arg v "$V" '. + [$v]')
+                  echo "    [queue] $V"
+                  COUNT=$((COUNT+1))
+                else
+                  echo "    [skip]  $V (already tracked)"
+                fi
+              done
+            fi
+
+            # ── Specific version requested ───────────────────────────────
+            SV="${{ github.event.inputs.specific_version || '' }}"
+            if [ -n "$SV" ] && ! echo "$TRACKED" | grep -qx "$SV"; then
+              VERSIONS=$(echo "$VERSIONS" | jq --arg v "$SV" '. + [$v]')
+              echo "    [queue] specific: $SV"
+            fi
+
+            # ── Always ensure latest is tracked ─────────────────────────
+            if ! echo "$TRACKED" | grep -qx "$LATEST"; then
+              VERSIONS=$(echo "$VERSIONS" | jq --arg v "$LATEST" '. + [$v]')
+              echo "    [queue] new latest: $LATEST"
+            fi
+
+            N=$(echo "$VERSIONS" | jq 'length')
+            if [ "$N" -gt 0 ]; then
+              ANYTHING_NEW=true
+              echo "  $APP_NAME: $N version(s) queued"
+            fi
+
+            RESULT=$(echo "$RESULT" | jq --arg k "$APP_NAME" --argjson v "$VERSIONS" '. + {($k): $v}')
+          done < <(jq -c '.[]' apps.json)
+
           FORCE="${{ github.event.inputs.force_rebuild || 'false' }}"
-          if [ "$N" -gt 0 ] || [ "$FORCE" = "true" ]; then
+          if [ "$ANYTHING_NEW" = "true" ] || [ "$FORCE" = "true" ]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Versions queued: $N"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
             echo "Nothing to do."
           fi
 
-          echo "versions_to_fetch=$(echo "$VERSIONS" | jq -c '.')" >> "$GITHUB_OUTPUT"
+          echo "app_versions=$(echo "$RESULT" | jq -c '.')" >> "$GITHUB_OUTPUT"
 
   # ── 2. Download, index, publish ────────────────────────────────────────────
   build:
@@ -142,8 +170,7 @@ jobs:
     if: needs.check.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     env:
-      LATEST_VERSION:    ${{ needs.check.outputs.latest_version }}
-      VERSIONS_TO_FETCH: ${{ needs.check.outputs.versions_to_fetch }}
+      APP_VERSIONS: ${{ needs.check.outputs.app_versions }}
 
     steps:
       - uses: actions/checkout@v4
@@ -169,28 +196,36 @@ jobs:
             echo "WARNING: no GPG key — repo will be unsigned"
           fi
 
-      - name: Download new .deb packages
+      - name: Download new .deb packages (all apps)
         run: |
-          echo "$VERSIONS_TO_FETCH" | jq -r '.[]' | while read -r V; do
-            bash scripts/download-debs.sh "$V"
-          done
+          echo "$APP_VERSIONS" | jq -r 'to_entries[] | .key as $app | .value[] | [$app, .] | @tsv' \
+            | while IFS=$'\t' read -r APP_NAME VERSION; do
+                bash scripts/download-debs.sh "$APP_NAME" "$VERSION"
+              done
 
-      - name: Update tracked_versions.json
-        run: bash scripts/update-tracked-versions.sh "$VERSIONS_TO_FETCH"
+      - name: Update tracked versions (all apps)
+        run: |
+          echo "$APP_VERSIONS" | jq -r 'to_entries[] | select(.value | length > 0) | .key' \
+            | while read -r APP_NAME; do
+                VERSIONS=$(echo "$APP_VERSIONS" | jq -c --arg k "$APP_NAME" '.[$k]')
+                bash scripts/update-tracked-versions.sh "$APP_NAME" "$VERSIONS"
+              done
 
-      - name: Build APT index (all versions in pool)
-        run: bash scripts/build-repo.sh "$LATEST_VERSION" "$GPG_KEY_ID" "${{ secrets.GPG_PASSPHRASE }}"
+      - name: Build APT index (all apps in pool)
+        run: bash scripts/build-repo.sh "$GPG_KEY_ID" "${{ secrets.GPG_PASSPHRASE }}"
 
       - name: Generate landing page
-        run: bash scripts/generate-index.sh "$LATEST_VERSION"
+        run: bash scripts/generate-index.sh
 
       - name: Commit metadata + index
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tracked_versions.json
-          git add -A -- docs/dists/ docs/index.html docs/rustdesk-apt.gpg
-          git commit -m "chore: APT repo → $LATEST_VERSION ($(echo "$VERSIONS_TO_FETCH" | jq 'length') new)" \
+          git add apps.json
+          git add -A -- tracked_versions/
+          git add -A -- docs/dists/ docs/index.html docs/apt-repo.gpg
+          SUMMARY=$(echo "$APP_VERSIONS" | jq -r 'to_entries | map("\(.key): \(.value | length) new") | join(", ")')
+          git commit -m "chore: APT repo update — $SUMMARY" \
             || echo "Nothing to commit"
           git push
 

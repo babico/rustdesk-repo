@@ -1,15 +1,22 @@
-# RustDesk APT Repository
+# Personal APT Repository
 
-Unofficial APT mirror for [RustDesk](https://github.com/rustdesk/rustdesk), hosted on GitHub Pages. All stable releases are available — install the latest or pin any historical version.
+Multi-app APT repository hosted on GitHub Pages. Mirrors `.deb` packages from upstream GitHub releases for easy installation via `apt`.
+
+## Included Apps
+
+| App | Upstream | Architectures |
+|-----|----------|---------------|
+| [RustDesk](https://rustdesk.com) | [rustdesk/rustdesk](https://github.com/rustdesk/rustdesk) | amd64, arm64, armhf |
+| [Mattermost Desktop](https://mattermost.com) | [mattermost/desktop](https://github.com/mattermost/desktop) | amd64, arm64 |
 
 ## How it works
 
 ```
-GitHub API (all releases)
+apps.json (app definitions)
         ↓
   GitHub Actions
   ┌──────────────────────────────────────┐
-  │ 1. Detect new / missing versions     │
+  │ 1. Check each app for new releases   │
   │ 2. Download .deb → docs/pool/        │
   │ 3. dpkg-scanpackages → Packages.gz   │
   │ 4. Generate Release + InRelease      │
@@ -19,38 +26,71 @@ GitHub API (all releases)
   https://YOUR_USERNAME.github.io/rustdesk-repo
 ```
 
-**Auto-bootstrap:** on the very first push (when `tracked_versions.json` is empty), the workflow automatically downloads **all** historical RustDesk releases. No manual trigger needed.
+**Auto-bootstrap:** on the very first push (when tracking files are empty), the workflow automatically downloads **all** historical releases for every app. No manual trigger needed.
 
 ---
 
 ## Using this repository
 
-### Install latest
+### Quick setup
 
 ```bash
-curl -fsSL https://YOUR_USERNAME.github.io/rustdesk-repo/rustdesk-apt.gpg \
-  | sudo gpg --dearmor -o /usr/share/keyrings/rustdesk.gpg
+curl -fsSL https://YOUR_USERNAME.github.io/rustdesk-repo/apt-repo.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/personal-apt.gpg
 
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/rustdesk.gpg] \
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/personal-apt.gpg] \
   https://YOUR_USERNAME.github.io/rustdesk-repo stable main" \
-  | sudo tee /etc/apt/sources.list.d/rustdesk.list
+  | sudo tee /etc/apt/sources.list.d/personal-apt.list
 
-sudo apt update && sudo apt install rustdesk
+sudo apt update
+```
+
+### Install apps
+
+```bash
+sudo apt install rustdesk
+sudo apt install mattermost-desktop
 ```
 
 ### Install a specific version
 
 ```bash
 sudo apt install rustdesk=1.4.5
+sudo apt install mattermost-desktop=6.1.0
 ```
 
 ### Hold / downgrade
 
 ```bash
-sudo apt-mark hold rustdesk          # prevent upgrades
-sudo apt install rustdesk=1.4.4      # downgrade
-sudo apt-mark unhold rustdesk        # re-enable upgrades
+sudo apt-mark hold rustdesk            # prevent upgrades
+sudo apt install rustdesk=1.4.4        # downgrade
+sudo apt-mark unhold rustdesk          # re-enable upgrades
 ```
+
+---
+
+## Adding a new app
+
+1. Edit `apps.json` and add a new entry:
+
+```json
+{
+  "name": "my-app",
+  "display_name": "My App",
+  "description": "Description of the app",
+  "homepage": "https://example.com",
+  "github_repo": "owner/repo",
+  "pool_letter": "m",
+  "architectures": {
+    "amd64": "amd64.deb"
+  },
+  "download_url": "https://example.com/releases/${VERSION}/my-app_${VERSION}_${SUFFIX}",
+  "deb_pattern": "my-app_${VERSION}_${SUFFIX}",
+  "version_prefix": "v"
+}
+```
+
+2. Push to `main` — the workflow will auto-detect the new app and download all releases.
 
 ---
 
@@ -73,14 +113,14 @@ gpg --batch --gen-key <<EOF
 %no-protection
 Key-Type: RSA
 Key-Length: 4096
-Name-Real: RustDesk APT Mirror
+Name-Real: Personal APT Mirror
 Name-Email: noreply@example.com
 Expire-Date: 0
 EOF
 
-gpg --armor --export-secret-keys "RustDesk APT Mirror" > private.key
-gpg --armor --export "RustDesk APT Mirror" > docs/rustdesk-apt.gpg
-git add docs/rustdesk-apt.gpg && git commit -m "add gpg pubkey"
+gpg --armor --export-secret-keys "Personal APT Mirror" > private.key
+gpg --armor --export "Personal APT Mirror" > docs/apt-repo.gpg
+git add docs/apt-repo.gpg && git commit -m "add gpg pubkey"
 ```
 
 Add these secrets in Settings → Secrets → Actions:
@@ -96,8 +136,6 @@ Add these secrets in Settings → Secrets → Actions:
 git push origin main
 ```
 
-The first push triggers the workflow which detects `tracked_versions.json` is empty and downloads **all** upstream releases.
-
 ---
 
 ## Workflow inputs (manual dispatch)
@@ -105,30 +143,41 @@ The first push triggers the workflow which detects `tracked_versions.json` is em
 | Input | Default | Description |
 |-------|---------|-------------|
 | `force_rebuild` | false | Re-index without re-downloading |
-| `backfill` | false | Force re-fetch all historical versions |
-| `backfill_limit` | 0 | Limit backfill count (0 = all) |
-| `specific_version` | — | Add a single version by tag |
+| `backfill` | false | Force re-fetch all historical versions for all apps |
+| `backfill_limit` | 0 | Limit backfill count per app (0 = all) |
+| `specific_app` | — | Target a single app by name |
+| `specific_version` | — | Add a single version (requires `specific_app`) |
 
 ---
 
 ## Storage
 
-Each RustDesk version is ~70 MB across 3 architectures.
-GitHub Pages soft limit: **1 GB** (~14 versions).
+Each app version varies in size. GitHub Pages soft limit: **1 GB**.
 Use `backfill_limit` to stay under if needed.
 
 > Note: `.deb` files are in `docs/pool/` which is **gitignored** — they are downloaded fresh on each CI run and never committed to git history.
 
 ---
 
-## Supported architectures
+## Repository structure
 
-| Architecture | APT label | Suffix |
-|---|---|---|
-| x86-64 | `amd64` | `x86_64.deb` |
-| AArch64 | `arm64` | `aarch64.deb` |
-| ARMv7 | `armhf` | `armv7-sciter.deb` |
+```
+apps.json                          # App definitions (name, URL patterns, archs)
+tracked_versions/
+  rustdesk.json                    # Per-app version tracking
+  mattermost-desktop.json
+scripts/
+  download-debs.sh                 # Generic .deb downloader (reads apps.json)
+  update-tracked-versions.sh       # Per-app version tracker
+  build-repo.sh                    # APT index builder (all apps)
+  generate-index.sh                # HTML landing page generator
+docs/
+  pool/main/{letter}/{app}/        # .deb files (gitignored)
+  dists/stable/                    # APT metadata
+  index.html                       # Landing page
+  apt-repo.gpg                     # GPG public key
+```
 
 ---
 
-MIT license. RustDesk is [AGPL-3.0](https://github.com/rustdesk/rustdesk/blob/master/LICENCE).
+MIT license. Upstream projects retain their own licenses.

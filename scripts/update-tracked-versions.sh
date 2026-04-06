@@ -1,13 +1,24 @@
 #!/usr/bin/env bash
-# update-tracked-versions.sh — Upsert newly fetched versions into tracked_versions.json.
-# Format: [ { "version":"1.4.6", "released_at":"2026-03-05", "added_at":"...", "archs":["amd64",...] } ]
+# update-tracked-versions.sh — Upsert newly fetched versions into per-app tracking files.
+# Usage: update-tracked-versions.sh <app_name> '<json-array-of-versions>'
+# Tracking files live under tracked_versions/<app_name>.json
 set -euo pipefail
 
-VERSIONS_JSON="${1:?Usage: $0 '<json-array>'}"
-FILE="tracked_versions.json"
-POOL="docs/pool/main/r/rustdesk"
+APP_NAME="${1:?Usage: $0 <app_name> '<json-array>'}"
+VERSIONS_JSON="${2:?Usage: $0 <app_name> '<json-array>'}"
+APPS_JSON="apps.json"
+
+APP=$(jq -e --arg n "$APP_NAME" '.[] | select(.name == $n)' "$APPS_JSON") \
+  || { echo "ERROR: app '$APP_NAME' not found in $APPS_JSON"; exit 1; }
+
+GITHUB_REPO=$(echo "$APP" | jq -r '.github_repo')
+POOL_LETTER=$(echo "$APP" | jq -r '.pool_letter')
+VERSION_PREFIX=$(echo "$APP" | jq -r '.version_prefix')
+POOL="docs/pool/main/${POOL_LETTER}/${APP_NAME}"
+FILE="tracked_versions/${APP_NAME}.json"
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+mkdir -p tracked_versions
 [ -f "$FILE" ] || echo "[]" > "$FILE"
 
 echo "==> Updating $FILE..."
@@ -15,13 +26,16 @@ echo "==> Updating $FILE..."
 echo "$VERSIONS_JSON" | jq -r '.[]' | while read -r V; do
   # Detect which archs are actually in the pool for this version
   ARCHS="[]"
-  [ -f "$POOL/rustdesk-${V}-x86_64.deb"       ] && ARCHS=$(echo "$ARCHS" | jq '. + ["amd64"]')
-  [ -f "$POOL/rustdesk-${V}-aarch64.deb"      ] && ARCHS=$(echo "$ARCHS" | jq '. + ["arm64"]')
-  [ -f "$POOL/rustdesk-${V}-armv7-sciter.deb" ] && ARCHS=$(echo "$ARCHS" | jq '. + ["armhf"]')
+  while IFS=$'\t' read -r ARCH SUFFIX; do
+    DEB_TPL=$(echo "$APP" | jq -r '.deb_pattern')
+    PKG=$(echo "$DEB_TPL" | sed "s/\${VERSION}/$V/g; s/\${SUFFIX}/$SUFFIX/g")
+    [ -f "$POOL/$PKG" ] && ARCHS=$(echo "$ARCHS" | jq --arg a "$ARCH" '. + [$a]')
+  done < <(echo "$APP" | jq -r '.architectures | to_entries[] | [.key, .value] | @tsv')
 
-  # Try to get the upstream release date (best-effort, no token needed for public repo)
+  # Try to get the upstream release date
+  TAG="${VERSION_PREFIX}${V}"
   REL_DATE=$(curl -sSf \
-    "https://api.github.com/repos/rustdesk/rustdesk/releases/tags/${V}" \
+    "https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${TAG}" \
     2>/dev/null | jq -r '.published_at // empty' || true)
   [ -z "$REL_DATE" ] && REL_DATE="$NOW"
 
@@ -41,4 +55,4 @@ echo "$VERSIONS_JSON" | jq -r '.[]' | while read -r V; do
   mv "$TMP" "$FILE"
 done
 
-echo "==> tracked_versions.json now has $(jq 'length' "$FILE") entries."
+echo "==> $FILE now has $(jq 'length' "$FILE") entries."

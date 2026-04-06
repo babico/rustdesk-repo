@@ -1,55 +1,64 @@
 #!/usr/bin/env bash
 # build-repo.sh — Build a full APT repository index from ALL .deb files in the pool.
-# Every version present in docs/pool/ is indexed and available to apt.
+# Scans all apps defined in apps.json. Every version present in docs/pool/ is indexed.
 set -euo pipefail
 
-LATEST="${1:?Usage: $0 <latest_version> [gpg_key_id] [gpg_passphrase]}"
-GPG_KEY_ID="${2:-}"
-GPG_PASSPHRASE="${3:-}"
+GPG_KEY_ID="${1:-}"
+GPG_PASSPHRASE="${2:-}"
 
+APPS_JSON="apps.json"
 REPO_ROOT="docs"
 DIST="stable"
 COMP="main"
-POOL="$REPO_ROOT/pool/$COMP/r/rustdesk"
+POOL="$REPO_ROOT/pool/$COMP"
 DISTS="$REPO_ROOT/dists/$DIST"
 
-echo "==> Building APT index from pool (all versions)..."
+echo "==> Building APT index from pool (all apps, all versions)..."
 
-# Count versions
-VERSIONS_IN_POOL=$(find "$POOL" -name '*.deb' 2>/dev/null \
-  | sed 's|.*rustdesk-||;s|-[^-]*\.deb$||' | sort -uV | tr '\n' ' ')
-echo "    Versions in pool: ${VERSIONS_IN_POOL:-none}"
+# Gather all unique architectures from all apps
+ALL_ARCHS=$(jq -r '.[].architectures | keys[]' "$APPS_JSON" | sort -u | tr '\n' ' ')
+echo "    Architectures: $ALL_ARCHS"
+
+# Count total debs
+TOTAL_DEBS=$(find "$POOL" -name '*.deb' 2>/dev/null | wc -l || echo 0)
+echo "    Total .deb files in pool: $TOTAL_DEBS"
 
 # Clean stale index
 rm -rf "$DISTS"
 mkdir -p "$DISTS/$COMP"
 
 # ── Per-architecture Packages files ──────────────────────────────────────────
-# We hard-link each arch's debs into a temp staging tree so dpkg-scanpackages
-# sees only the right files. The Filename: entries will then be correct relative
-# to docs/ when we strip the staging prefix below.
-
-declare -A ARCH_SUFFIX=(
-  [amd64]="x86_64.deb"
-  [arm64]="aarch64.deb"
-  [armhf]="armv7-sciter.deb"
-)
+# We link each arch's debs into a temp staging tree so dpkg-scanpackages
+# sees only the right files per architecture.
 
 STAGING=$(mktemp -d)
 trap 'rm -rf "$STAGING"' EXIT
 
-for ARCH in "${!ARCH_SUFFIX[@]}"; do
-  SUFFIX="${ARCH_SUFFIX[$ARCH]}"
-  STAGE_POOL="$STAGING/$ARCH/pool/$COMP/r/rustdesk"
+for ARCH in $ALL_ARCHS; do
+  STAGE_POOL="$STAGING/$ARCH/pool/$COMP"
   mkdir -p "$STAGE_POOL"
 
-  # Link matching debs into the staging pool
-  while IFS= read -r -d '' DEB; do
-    ln "$DEB" "$STAGE_POOL/$(basename "$DEB")" 2>/dev/null \
-      || cp "$DEB" "$STAGE_POOL/$(basename "$DEB")"
-  done < <(find "$POOL" -name "*-${SUFFIX}" -print0 2>/dev/null)
+  # For each app, find debs matching this architecture's suffix
+  while IFS= read -r APP_ROW; do
+    APP_NAME=$(echo "$APP_ROW" | jq -r '.name')
+    POOL_LETTER=$(echo "$APP_ROW" | jq -r '.pool_letter')
+    SUFFIX=$(echo "$APP_ROW" | jq -r --arg a "$ARCH" '.architectures[$a] // empty')
 
-  COUNT=$(find "$STAGE_POOL" -name '*.deb' | wc -l)
+    [ -z "$SUFFIX" ] && continue  # this app doesn't have this arch
+
+    SRC_POOL="$POOL/${POOL_LETTER}/${APP_NAME}"
+    [ -d "$SRC_POOL" ] || continue
+
+    STAGE_APP="$STAGE_POOL/${POOL_LETTER}/${APP_NAME}"
+    mkdir -p "$STAGE_APP"
+
+    while IFS= read -r -d '' DEB; do
+      ln "$DEB" "$STAGE_APP/$(basename "$DEB")" 2>/dev/null \
+        || cp "$DEB" "$STAGE_APP/$(basename "$DEB")"
+    done < <(find "$SRC_POOL" -name "*${SUFFIX}" -print0 2>/dev/null)
+  done < <(jq -c '.[]' "$APPS_JSON")
+
+  COUNT=$(find "$STAGE_POOL" -name '*.deb' 2>/dev/null | wc -l)
   if [ "$COUNT" -eq 0 ]; then
     echo "  [skip] $ARCH — no packages"
     continue
@@ -60,13 +69,9 @@ for ARCH in "${!ARCH_SUFFIX[@]}"; do
 
   # Scan from staging root → Filename paths will be pool/...
   (cd "$STAGING/$ARCH" && \
-    dpkg-scanpackages "pool/$COMP/r/rustdesk" /dev/null 2>/dev/null) \
+    dpkg-scanpackages "pool/$COMP" /dev/null 2>/dev/null) \
     > "$PKG_DIR/Packages"
 
-  # Fix Filename: paths — they must be relative to the GitHub Pages root (docs/),
-  # so prepend nothing (dpkg-scanpackages already emits "pool/..." which is correct
-  # because GitHub Pages serves docs/ as the root).
-  # Verify the paths look right:
   FIRST=$(grep '^Filename:' "$PKG_DIR/Packages" | head -1)
   echo "  [ok]  $ARCH — $COUNT pkg(s)  ($FIRST)"
 
@@ -78,18 +83,27 @@ echo "==> Generating Release..."
 
 OWNER="${GITHUB_REPOSITORY_OWNER:-your-username}"
 SLUG="${GITHUB_REPOSITORY:-your-username/rustdesk-repo}"
-TOTAL=$(find "$POOL" -name '*.deb' 2>/dev/null \
-  | sed 's|.*rustdesk-||;s|-[^-]*\.deb$||' | sort -uV | wc -l || echo "?")
+APP_COUNT=$(jq 'length' "$APPS_JSON")
+
+# Count total unique versions across all apps
+TOTAL_VERSIONS=0
+while IFS= read -r APP_ROW; do
+  APP_NAME=$(echo "$APP_ROW" | jq -r '.name')
+  TFILE="tracked_versions/${APP_NAME}.json"
+  if [ -f "$TFILE" ]; then
+    V_COUNT=$(jq 'length' "$TFILE")
+    TOTAL_VERSIONS=$((TOTAL_VERSIONS + V_COUNT))
+  fi
+done < <(jq -c '.[]' "$APPS_JSON")
 
 cat > "$DISTS/Release" <<RELEASE
-Origin: RustDesk APT Mirror
-Label: RustDesk
+Origin: Personal APT Mirror
+Label: Personal APT Repository
 Suite: $DIST
 Codename: $DIST
-Version: $LATEST
-Architectures: amd64 arm64 armhf
+Architectures: $(echo $ALL_ARCHS | tr ' ' ' ')
 Components: $COMP
-Description: Unofficial APT mirror — $TOTAL version(s) available
+Description: Personal APT mirror — $APP_COUNT app(s), $TOTAL_VERSIONS version(s) available
 Date: $(date -Ru)
 RELEASE
 
@@ -119,7 +133,7 @@ if [ -n "$GPG_KEY_ID" ]; then
     --clearsign  --output "$DISTS/InRelease"  "$DISTS/Release"
   echo "$GPG_PASSPHRASE" | gpg $OPTS --default-key "$GPG_KEY_ID" \
     --detach-sign --armor --output "$DISTS/Release.gpg" "$DISTS/Release"
-  gpg --armor --export "$GPG_KEY_ID" > "$REPO_ROOT/rustdesk-apt.gpg"
+  gpg --armor --export "$GPG_KEY_ID" > "$REPO_ROOT/apt-repo.gpg"
   echo "==> Signed OK."
 else
   echo "==> No GPG key — skipping signatures."
@@ -127,7 +141,7 @@ fi
 
 echo ""
 echo "==> Index summary:"
-for ARCH in amd64 arm64 armhf; do
+for ARCH in $ALL_ARCHS; do
   F="$DISTS/$COMP/binary-$ARCH/Packages"
   [ -f "$F" ] && echo "   $ARCH: $(grep -c '^Package:' "$F") package(s)" || echo "   $ARCH: (none)"
 done
