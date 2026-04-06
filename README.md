@@ -23,7 +23,7 @@ apps.json (app definitions)
   │ 5. Deploy to GitHub Pages            │
   └──────────────────────────────────────┘
         ↓
-  https://YOUR_USERNAME.github.io/rustdesk-repo
+  https://YOUR_USERNAME.github.io/apt-packages
 ```
 
 **Auto-bootstrap:** on the very first push (when tracking files are empty), the workflow automatically downloads **all** historical releases for every app. No manual trigger needed.
@@ -35,11 +35,11 @@ apps.json (app definitions)
 ### Quick setup
 
 ```bash
-curl -fsSL https://YOUR_USERNAME.github.io/rustdesk-repo/apt-repo.gpg \
+curl -fsSL https://YOUR_USERNAME.github.io/apt-packages/apt-repo.gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/personal-apt.gpg
 
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/personal-apt.gpg] \
-  https://YOUR_USERNAME.github.io/rustdesk-repo stable main" \
+  https://YOUR_USERNAME.github.io/apt-packages stable main" \
   | sudo tee /etc/apt/sources.list.d/personal-apt.list
 
 sudo apt update
@@ -99,7 +99,7 @@ sudo apt-mark unhold rustdesk          # re-enable upgrades
 ### 1. Fork this repo
 
 ```bash
-gh repo create rustdesk-repo --public --clone
+gh repo create apt-packages --public --clone
 ```
 
 ### 2. Enable GitHub Pages

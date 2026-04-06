@@ -8,9 +8,6 @@ docs/pool/
 !docs/index.html
 !docs/apt-repo.gpg
 
-# Legacy key file (kept for backwards compat if present)
-!docs/rustdesk-apt.gpg
-
 # Secrets / local keys
 private.key
 *.asc

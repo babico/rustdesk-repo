@@ -82,7 +82,7 @@ done
 echo "==> Generating Release..."
 
 OWNER="${GITHUB_REPOSITORY_OWNER:-your-username}"
-SLUG="${GITHUB_REPOSITORY:-your-username/rustdesk-repo}"
+SLUG="${GITHUB_REPOSITORY:-your-username/apt-packages}"
 APP_COUNT=$(jq 'length' "$APPS_JSON")
 
 # Count total unique versions across all apps
