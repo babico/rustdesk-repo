@@ -1,15 +1,15 @@
 Package: mattermost-desktop
-Version: 6.0.4
+Version: 6.1.1
 Architecture: amd64
 Maintainer: Mattermost, Inc. <feedback@mattermost.com>
-Installed-Size: 301957
+Installed-Size: 306254
 Depends: libnotify4, libxtst6, libnss3
 Recommends: libappindicator3-1
-Filename: pool/main/m/mattermost-desktop/mattermost-desktop_6.0.4-1_amd64.deb
-Size: 96458144
-MD5sum: 72e964e290af33a6a1be1a8a68b90d71
-SHA1: fee77136e394ea6f0d3d1cbf0ea19a60bd1bd93d
-SHA256: 20bd815dadf8d5fb71a3a36c108726c8f360db67880b1d263c139d8c2d2fb148
+Filename: pool/main/m/mattermost-desktop/mattermost-desktop_6.1.1-1_amd64.deb
+Size: 96545784
+MD5sum: 76251122ca3017bb2f8c84377f4342b2
+SHA1: df2607d07ed6d7cd10725ac2e89ba9c168a7d05d
+SHA256: 06960d695be68d8ec845fe6661b8330b2bea0ab6c0e52c33b738bb4a73e074e0
 Section: default
 Priority: optional
 Homepage: https://mattermost.com
